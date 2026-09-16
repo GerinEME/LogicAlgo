@@ -4,6 +4,12 @@ Interpréteur pédagogique de pseudo-code avec génération d'algorigrammes, dé
 
 **Sans installation, sans dépendance** — un seul fichier Python ou un `.exe` prêt à l'emploi.
 
+![Interface EME - LogicAlgo](docs/screen1.png)
+
+![Interface EME - LogicAlgo](docs/screen2.png)
+
+![Exemple d'algorigramme généré](docs/algo_01.png)
+
 ---
 
 ## Fonctionnalités
