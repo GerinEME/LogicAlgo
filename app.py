@@ -817,6 +817,8 @@ class LogicAlgoApp:
                       activebackground='#B98BFF', activeforeground='white')
         S_COM  = dict(bg='#EDEEF0', fg='#5A6477',
                       activebackground='#BFC4CF', activeforeground='#1F2733')
+        S_BIND = dict(bg='#FFF8ED', fg='#924A00',
+                      activebackground='#FDE8C0', activeforeground='#5C2D00')
 
         snippets = [
             ('+ Variable',
@@ -856,6 +858,15 @@ class LogicAlgoApp:
              'Demander une valeur a l\'utilisateur et la stocker dans une variable.\n'
              'Une boite de dialogue s\'ouvre pendant l\'execution.\n'
              'Exemple : LIRE age   (stocke la saisie dans la variable age)'),
+            ('← Affecter',
+             self._dlg_affectation, S_BIND,
+             'Affecter une valeur a une variable (PREND_LA_VALEUR).\n'
+             'Choisir la variable dans la liste, puis saisir la valeur ou l\'expression.\n'
+             'Le dialogue s\'adapte au type declare (NOMBRE, TEXTE, BOOLEEN, LISTE).\n'
+             'Exemples :\n'
+             '  x PREND_LA_VALEUR 0\n'
+             '  somme PREND_LA_VALEUR somme + 1\n'
+             '  message PREND_LA_VALEUR "Bonjour"'),
             ('// ...',
              self._toggle_comment, S_COM,
              'Commenter ou decommenter la ligne courante (raccourci : Ctrl+/).\n'
@@ -1079,6 +1090,172 @@ class LogicAlgoApp:
                   bg=ACCENT, fg='white', activebackground=ACCENT_DARK, activeforeground='white',
                   font=('Segoe UI', 9, 'bold'), padx=10, pady=4).pack(side='left', padx=8)
 
+        dlg.bind('<Return>', lambda e: do_insert())
+        dlg.bind('<Escape>', lambda e: dlg.destroy())
+
+    def _get_declared_vars(self):
+        result = []
+        in_vars = False
+        for ln in self.code_text.get('1.0', 'end-1c').split('\n'):
+            t = ln.strip().upper()
+            if t == 'VARIABLES':
+                in_vars = True
+                continue
+            if t in ('DEBUT_ALGORITHME', 'FIN_ALGORITHME'):
+                break
+            if in_vars:
+                m = re.match(r'^([A-Za-zÀ-ÿ_][A-Za-zÀ-ÿ0-9_]*)\s+EST_DU_TYPE\s+(NOMBRE|TEXTE|BOOLEEN|LISTE)$',
+                             ln.strip(), re.IGNORECASE)
+                if m:
+                    result.append((m.group(1), m.group(2).upper()))
+        return result
+
+    def _dlg_affectation(self):
+        vars_list = self._get_declared_vars()
+        dlg = tk.Toplevel(self.root)
+        dlg.title('Affecter une valeur')
+        dlg.resizable(False, False)
+        dlg.configure(bg=BG)
+        dlg.grab_set()
+        dlg.transient(self.root)
+
+        if not vars_list:
+            dlg.geometry('300x120')
+            tk.Label(dlg, text='Aucune variable declaree.\nAjoute d\'abord une variable\n'
+                               'dans le bloc VARIABLES.',
+                     bg=BG, fg=TEXT, font=('Segoe UI', 9), justify='center').pack(padx=20, pady=16)
+            tk.Button(dlg, text='OK', command=dlg.destroy, relief='flat',
+                      bg=ACCENT, fg='white', font=('Segoe UI', 9), padx=16, pady=4).pack(pady=(0, 14))
+            dlg.bind('<Return>', lambda e: dlg.destroy())
+            dlg.bind('<Escape>', lambda e: dlg.destroy())
+            return
+
+        dlg.geometry('430x250')
+
+        tk.Label(dlg, text='Variable :', bg=BG, fg=TEXT,
+                 font=('Segoe UI', 9)).grid(row=0, column=0, sticky='w', padx=16, pady=(16, 6))
+        var_labels = [f"{n}  ({t})" for n, t in vars_list]
+        var_combo = ttk.Combobox(dlg, values=var_labels, state='readonly', width=28,
+                                 font=('Consolas', 10))
+        var_combo.current(0)
+        var_combo.grid(row=0, column=1, sticky='w', padx=(0, 16), pady=(16, 6))
+
+        dyn = tk.Frame(dlg, bg=BG)
+        dyn.grid(row=1, column=0, columnspan=2, sticky='ew', padx=16)
+
+        expr_var     = tk.StringVar()
+        bool_var     = tk.StringVar(value='VRAI')
+        idx_var      = tk.StringVar()
+        idx_expr_var = tk.StringVar()
+        _focus = [None]
+
+        def rebuild_dyn(vtype):
+            for w in dyn.winfo_children():
+                w.destroy()
+            expr_var.set('')
+            if vtype in ('NOMBRE', 'TEXTE'):
+                tk.Label(dyn, text='Expression :', bg=BG, fg=TEXT,
+                         font=('Segoe UI', 9)).grid(row=0, column=0, sticky='w', pady=4)
+                ent = tk.Entry(dyn, textvariable=expr_var, font=('Consolas', 10), width=26,
+                               relief='flat', highlightthickness=1, highlightbackground=BORDER)
+                ent.grid(row=0, column=1, sticky='w', padx=(8, 0), pady=4)
+                hint = 'ex : 0   x + 1   ALEA(1, 6)' if vtype == 'NOMBRE' else 'ex : "Bonjour"   prenom + " Dupont"'
+                tk.Label(dyn, text=hint, bg=BG, fg=MUTED,
+                         font=('Segoe UI', 8)).grid(row=1, column=0, columnspan=2, sticky='w')
+                _focus[0] = ent
+            elif vtype == 'BOOLEEN':
+                bool_var.set('VRAI')
+                tk.Label(dyn, text='Valeur :', bg=BG, fg=TEXT,
+                         font=('Segoe UI', 9)).grid(row=0, column=0, sticky='w', pady=4)
+                cb = ttk.Combobox(dyn, textvariable=bool_var,
+                                  values=['VRAI', 'FAUX', 'expression...'],
+                                  state='readonly', width=20, font=('Consolas', 10))
+                cb.grid(row=0, column=1, sticky='w', padx=(8, 0), pady=4)
+                tk.Label(dyn, text='ou choisir "expression..." pour saisir une condition',
+                         bg=BG, fg=MUTED, font=('Segoe UI', 8)).grid(row=1, column=0, columnspan=2, sticky='w')
+                expr_frame = tk.Frame(dyn, bg=BG)
+                ent_expr = tk.Entry(expr_frame, textvariable=expr_var, font=('Consolas', 10), width=26,
+                                    relief='flat', highlightthickness=1, highlightbackground=BORDER)
+                ent_expr.pack()
+                def on_bool_cb(event=None):
+                    if bool_var.get() == 'expression...':
+                        expr_frame.grid(row=2, column=0, columnspan=2, sticky='w', pady=(4, 0))
+                        ent_expr.focus_set()
+                    else:
+                        expr_frame.grid_remove()
+                        expr_var.set('')
+                cb.bind('<<ComboboxSelected>>', on_bool_cb)
+                _focus[0] = None
+            elif vtype == 'LISTE':
+                idx_var.set('')
+                idx_expr_var.set('')
+                tk.Label(dyn, text='Indice :', bg=BG, fg=TEXT,
+                         font=('Segoe UI', 9)).grid(row=0, column=0, sticky='w', pady=4)
+                ent_i = tk.Entry(dyn, textvariable=idx_var, font=('Consolas', 10), width=10,
+                                 relief='flat', highlightthickness=1, highlightbackground=BORDER)
+                ent_i.grid(row=0, column=1, sticky='w', padx=(8, 0), pady=4)
+                tk.Label(dyn, text='Valeur :', bg=BG, fg=TEXT,
+                         font=('Segoe UI', 9)).grid(row=1, column=0, sticky='w', pady=4)
+                ent_v = tk.Entry(dyn, textvariable=idx_expr_var, font=('Consolas', 10), width=22,
+                                 relief='flat', highlightthickness=1, highlightbackground=BORDER)
+                ent_v.grid(row=1, column=1, sticky='w', padx=(8, 0), pady=4)
+                tk.Label(dyn, text='ex : indice 0, valeur 42 ou "Alice"', bg=BG,
+                         fg=MUTED, font=('Segoe UI', 8)).grid(row=2, column=0, columnspan=2, sticky='w')
+                _focus[0] = ent_i
+            if _focus[0]:
+                _focus[0].focus_set()
+
+        def on_var_change(event=None):
+            i = var_combo.current()
+            if i >= 0:
+                rebuild_dyn(vars_list[i][1])
+
+        var_combo.bind('<<ComboboxSelected>>', on_var_change)
+        rebuild_dyn(vars_list[0][1])
+
+        err_label = tk.Label(dlg, text='', bg=BG, fg=ERR_COLOR, font=('Segoe UI', 8))
+        err_label.grid(row=2, column=0, columnspan=2, padx=16, pady=(6, 0))
+
+        def do_insert():
+            ci = var_combo.current()
+            if ci < 0:
+                err_label.configure(text='Choisir une variable.')
+                return
+            var_name, vtype = vars_list[ci]
+            if vtype == 'LISTE':
+                idx_s = idx_var.get().strip()
+                val_s = idx_expr_var.get().strip()
+                if not idx_s:
+                    err_label.configure(text='L\'indice est obligatoire.')
+                    return
+                if not val_s:
+                    err_label.configure(text='La valeur est obligatoire.')
+                    return
+                snippet = f'  {var_name}[{idx_s}] PREND_LA_VALEUR {val_s}\n'
+            elif vtype == 'BOOLEEN':
+                val_s = bool_var.get()
+                if val_s == 'expression...':
+                    val_s = expr_var.get().strip()
+                    if not val_s:
+                        err_label.configure(text='L\'expression est obligatoire.')
+                        return
+                snippet = f'  {var_name} PREND_LA_VALEUR {val_s}\n'
+            else:
+                val_s = expr_var.get().strip()
+                if not val_s:
+                    err_label.configure(text='La valeur ou l\'expression est obligatoire.')
+                    return
+                snippet = f'  {var_name} PREND_LA_VALEUR {val_s}\n'
+            self._insert_snippet(snippet)
+            dlg.destroy()
+
+        btn_frame = tk.Frame(dlg, bg=BG)
+        btn_frame.grid(row=3, column=0, columnspan=2, pady=(8, 14))
+        tk.Button(btn_frame, text='Annuler', command=dlg.destroy, relief='flat',
+                  bg=PANEL, fg=TEXT, font=('Segoe UI', 9), padx=10, pady=4).pack(side='left', padx=8)
+        tk.Button(btn_frame, text='Inserer', command=do_insert, relief='flat',
+                  bg=ACCENT, fg='white', activebackground=ACCENT_DARK, activeforeground='white',
+                  font=('Segoe UI', 9, 'bold'), padx=10, pady=4).pack(side='left', padx=8)
         dlg.bind('<Return>', lambda e: do_insert())
         dlg.bind('<Escape>', lambda e: dlg.destroy())
 

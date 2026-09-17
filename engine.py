@@ -632,6 +632,16 @@ def run_program(source, trace=False, read_input=None, write_output=None):
             if decl.get(s['name']) == 'LISTE':
                 raise AlgoError('Impossible d\'affecter une liste entiere : precise un indice, par exemple ' + s['name'] + '[i] PREND_LA_VALEUR ...', s['line'])
             v = eval_expr(s['expr'], env, s['line'])
+            vtype = decl.get(s['name'])
+            if vtype == 'NOMBRE':
+                if isinstance(v, bool) or not isinstance(v, (int, float)):
+                    raise AlgoError('La variable "' + s['name'] + '" est de type NOMBRE : impossible de lui affecter "' + fmt_val(v) + '" (valeur non numerique)', s['line'])
+            elif vtype == 'TEXTE':
+                if not isinstance(v, str):
+                    raise AlgoError('La variable "' + s['name'] + '" est de type TEXTE : impossible de lui affecter une valeur numerique ou booleenne (utilise AFFICHER pour convertir)', s['line'])
+            elif vtype == 'BOOLEEN':
+                if not isinstance(v, bool):
+                    raise AlgoError('La variable "' + s['name'] + '" est de type BOOLEEN : affecter VRAI ou FAUX uniquement (ex : ' + s['name'] + ' PREND_LA_VALEUR VRAI)', s['line'])
             env[s['name']] = v
             push_trace(s['line'], s['name'] + ' PREND_LA_VALEUR ' + fmt_val(v))
         elif t == 'AFFECT_INDEX':
