@@ -2,7 +2,7 @@
 
 Interpréteur pédagogique de pseudo-code avec génération d'algorigrammes, développé pour les classes de BTS CIEL IR et STI2D du Lycée EME à Marseille.
 
-**Sans installation, sans dépendance** — un seul fichier Python ou un `.exe` prêt à l'emploi.
+**Sans installation, sans dépendance** - un seul fichier Python ou un `.exe` prêt à l'emploi.
 
 ![Interface EME - LogicAlgo](docs/screen1.png)
 
@@ -55,11 +55,11 @@ Fonctions : `ALEA()`, `ALEA(a, b)`, `LONGUEUR(tableau)`
 
 ## Installation
 
-### Option 1 — Exécutable Windows (aucun Python requis)
+### Option 1 - Exécutable Windows (aucun Python requis)
 
 Télécharger `EME-LogicAlgo.exe` depuis la page [Releases](../../releases) et double-cliquer.
 
-### Option 2 — Python
+### Option 2 - Python
 
 ```bash
 # Python 3.8+ requis
@@ -95,5 +95,5 @@ LogicAlgo-EME/
 
 ## Licence
 
-GPL v3 — voir [LICENSE](LICENSE).  
-© 2026 Tristan Gérin — Lycée EME, Marseille.
+GPL v3 - voir [LICENSE](LICENSE).  
+© 2026 Tristan Gérin - Lycée EME, Marseille.
